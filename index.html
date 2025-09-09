@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF‑8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clash Royale Clone – Full Working Version</title>
+  <style>
+    /* Terrain & Arena styling */
+    body { margin:0; background:#2d6a4f; user-select:none; font-family:'Segoe UI',sans-serif; }
+    #game { position:relative; width:400px; height:600px; margin:20px auto;
+      background:
+        radial-gradient(circle at center,#8ccf77 25%,#569a3d 90%),
+        repeating-radial-gradient(circle at 20px 20px,rgba(255,255,255,0.05) 0 1px,transparent 2px 6px),
+        repeating-linear-gradient(45deg,transparent 0 2px,rgba(0,0,0,0.03) 2px 3px);
+      border:3px solid #1b4332; border-radius:12px; overflow:hidden; }
+    #game::before {
+      content:''; position:absolute; top:280px; left:0; width:100%; height:40px;
+      background:linear-gradient(90deg,#6ad7ff,#3db4e7,#6ad7ff);
+      border-top:2px solid #5ec4f1; border-bottom:2px solid #5ec4f1;
+      box-shadow:0 0 10px inset #68c2f0; z-index:0; }
+    #game::after {
+      content:''; position:absolute; top:280px; left:50%; width:120px; height:40px;
+      margin-left:-60px; background:linear-gradient(90deg,#8b6f4f,#5d4a2a);
+      border-radius:8px 8px 0 0; box-shadow:inset 0 0 8px #a88b67; z-index:1; }
+    .lane-divider { position:absolute; width:40px; height:600px; top:0;
+      background:repeating-linear-gradient(45deg,#b28b5a 0 6px,#a77c4f 6px 12px);
+      border-radius:0 12px 12px 0; box-shadow:inset 0 0 6px #7b5a34; z-index:2; }
+    .lane-divider.left { left:20px; }
+    .lane-divider.right { right:20px; border-radius:12px 0 0 12px; }
+    .bush, .rock { position:absolute; z-index:3; }
+    .bush { width:40px; height:30px;
+      background:radial-gradient(circle at center,#3d6a2e,#1f3e16);
+      border-radius:50%/70%; box-shadow:inset 0 0 5px #2b4b17; }
+    .bush.left-top { top:50px; left:10px; }
+    .bush.left-bottom { bottom:70px; left:15px; }
+    .bush.right-top { top:60px; right:10px; }
+    .bush.right-bottom { bottom:80px; right:15px; }
+    .rock { width:25px; height:18px;
+      background:radial-gradient(circle at center,#777,#444);
+      border-radius:50%/40%; box-shadow:inset 0 0 5px #aaa; }
+    .rock.left { bottom:140px; left:45px; }
+    .rock.right { top:200px; right:45px; }
+    .tower {
+      position:absolute; width:80px; height:100px;
+      background:#5f8d4e; border-radius:12px;
+      border:3px solid #345d29; box-shadow:inset 0 0 15px #36582f;
+      display:flex; flex-direction:column; align-items:center; justify-content:flex-end; z-index:5; }
+    .tower.king {
+      width:90px; height:110px; background:#b53e3e;
+      border-color:#732828; box-shadow:inset 0 0 20px #8a2c2c; }
+    .tower .label {
+      font-size:14px; font-weight:bold; color:#eee;
+      text-shadow:1px 1px 2px black; margin-bottom:6px;
+      text-align:center; padding:0 4px; }
+    .tower .health-bar {
+      width:70px; height:12px; background:#ddd; border-radius:10px;
+      overflow:hidden; box-shadow:inset 0 0 5px #999; }
+    .tower .health-fill {
+      height:100%; background:linear-gradient(90deg,#22c55e,#166534);
+      width:100%; transition: width 0.3s ease; }
+
+    .unit-wrapper {
+      position:absolute; width:48px; height:64px;
+      transform-origin:center bottom; z-index:10; }
+    .unit {
+      width:48px; height:64px;
+      background-size:contain; background-repeat:no-repeat;
+      animation:breathe 1.3s ease-in-out infinite;
+      transition:filter 0.2s ease; }
+    .unit.attacking { animation:attackShake 0.15s ease-in-out; }
+    .unit.dying { animation:fadeOut 0.8s forwards; }
+
+    @keyframes breathe { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-3px);} }
+    @keyframes attackShake { 0%,100%{transform:translateX(0);} 50%{transform:translateX(4px);} }
+    @keyframes fadeOut { to{opacity:0; transform:scale(0.6) translateY(20px);} }
+
+    .unit .health-bar {
+      position:absolute; bottom:-10px; left:0;
+      width:44px; height:8px; margin-bottom:4px;
+      border-radius:5px; background:#222; border:1.5px solid #111;
+      box-shadow:inset 0 0 5px #0008; }
+    .unit .health-fill {
+      height:100%; border-radius:5px;
+      background:linear-gradient(to right,#4caf50,#ffeb3b,#f44336);
+      box-shadow:0 0 8px rgba(0,0,0,0.4);
+      transition:width 0.3s ease; }
+
+    .spell-effect {
+      position:absolute; width:90px; height:90px; border-radius:50%;
+      pointer-events:none; opacity:0.8; animation:spellFade 1s forwards;
+      z-index:20; }
+    .spell-effect.fireball {
+      background:radial-gradient(circle,orange 0%,transparent 70%);
+      filter:drop-shadow(0 0 6px orange); }
+    .spell-effect.freeze {
+      background:radial-gradient(circle,#80d8ff 0%,transparent 70%);
+      filter:drop-shadow(0 0 8px #70b8ff); }
+    @keyframes spellFade { to { opacity:0; transform:scale(1.4); } }
+
+    #controls {
+      width:400px; margin:10px auto; display:flex; justify-content:space-around;
+      z-index:30; }
+    button {
+      background:#40916c; border:2px solid #2d6a4f;
+      border-radius:8px; color:white; font-weight:bold;
+      padding:10px 16px; user-select:none;
+      transition:background 0.3s; outline-offset:2px;
+    }
+    button:hover:not(.cooldown) { background:#52b788; }
+    button.selected { box-shadow:0 0 8px 3px #74c69d; }
+    button.cooldown { opacity:0.5; cursor:default; }
+    button.cooldown::after {
+      content:attr(data-cd); position:absolute; top:2px; right:6px;
+      font-size:12px; color:white; text-shadow:0 0 3px black;
+    }
+
+    #elixirBarContainer {
+      width:400px; margin:8px auto; height:22px;
+      background:#a7c4a0; border-radius:10px;
+      box-shadow:inset 0 0 6px #6a9270; }
+    #elixirBar {
+      height:100%; background:linear-gradient(90deg,#22c55e,#16a34a);
+      width:10%; border-radius:10px; transition:width 0.3s ease; }
+  </style>
+</head>
+<body>
+  <div id="game" tabindex="0">
+    <!-- Terrain decor -->
+    <div class="lane-divider left"></div>
+    <div class="lane-divider right"></div>
+    <div class="bush left-top"></div>
+    <div class="bush left-bottom"></div>
+    <div class="bush right-top"></div>
+    <div class="bush right-bottom"></div>
+    <div class="rock left"></div>
+    <div class="rock right"></div>
+
+    <!-- Towers -->
+    <div class="tower king" id="playerKing" style="bottom:10px; left:160px;">
+      <div class="label">King Tower</div>
+      <div class="health-bar"><div class="health-fill"></div></div>
+    </div>
+    <div class="tower" id="playerLeft" style="bottom:110px; left:60px;">
+      <div class="label">Princess Tower</div>
+      <div class="health-bar"><div class="health-fill"></div></div>
+    </div>
+    <div class="tower" id="playerRight" style="bottom:110px; left:260px;">
+      <div class="label">Princess Tower</div>
+      <div class="health-bar"><div class="health-fill"></div></div>
+    </div>
+    <div class="tower king" id="enemyKing" style="top:10px; left:160px;">
+      <div class="label">King Tower</div>
+      <div class="health-bar"><div class="health-fill"></div></div>
+    </div>
+    <div class="tower" id="enemyLeft" style="top:110px; left:60px;">
+      <div class="label">Princess Tower</div>
+      <div class="health-bar"><div class="health-fill"></div></div>
+    </div>
+    <div class="tower" id="enemyRight" style="top:110px; left:260px;">
+      <div class="label">Princess Tower</div>
+      <div class="health-bar"><div class="health-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <button id="btnKnight" data-name="Knight">Knight (3)</button>
+    <button id="btnArcher" data-name="Archer">Archer (2)</button>
+    <button id="btnGiant" data-name="Giant">Giant (5)</button>
+    <button id="btnWizard" data-name="Wizard">Wizard (5)</button>
+    <button id="btnFireball" data-name="Fireball">Fireball (4)</button>
+    <button id="btnFreeze" data-name="Freeze">Freeze (5)</button>
+  </div>
+  <div id="elixirBarContainer">
+    <div id="elixirBar"></div>
+  </div>
+
+  <script>
+  (() => {
+    // Sprites generation functions (same as defined before)
+    function createKnightSprite() { /* ... */ }
+    function createArcherSprite() { /* ... */ }
+    function createGiantSprite() { /* ... */ }
+    function createWizardSprite() { /* ... */ }
+    const sprites = {
+      Knight: createKnightSprite(),
+      Archer: createArcherSprite(),
+      Giant: createGiantSprite(),
+      Wizard: createWizardSprite(),
+    };
+    const unitStats = {
+      Knight: { cost:3, hp:120, dmg:30, range:40, atkSpeed:1000, sprite:sprites.Knight },
+      Archer: { cost:2, hp:60, dmg:20, range:120, atkSpeed:700, sprite:sprites.Archer },
+      Giant: { cost:5, hp:300, dmg:40, range:40, atkSpeed:1200, sprite:sprites.Giant },
+      Wizard: { cost:5, hp:80, dmg:25, range:100, atkSpeed:900, sprite:sprites.Wizard },
+    };
+    const spells = {
+      Fireball: { cost:4, dmg:30, radius:70 },
+      Freeze: { cost:5, duration:3000, radius:70 },
+    };
+
+    const game = document.getElementById('game'),
+          elixirBar = document.getElementById('elixirBar'),
+          buttons = document.querySelectorAll('#controls button');
+    let elixir = 10, lastTimestamp=0, units=[], spellsActive=[], aiCooldown=0;
+    const towers = {
+      playerLeft: { el:document.getElementById('playerLeft'), health:100, maxHealth:100 },
+      playerKing: { el:document.getElementById('playerKing'), health:100, maxHealth:100 },
+      playerRight: { el:document.getElementById('playerRight'), health:100, maxHealth:100 },
+      enemyLeft: { el:document.getElementById('enemyLeft'), health:100, maxHealth:100 },
+      enemyKing: { el:document.getElementById('enemyKing'), health:100, maxHealth:100 },
+      enemyRight: { el:document.getElementById('enemyRight'), health:100, maxHealth:100 },
+    };
+    function updateTower(t) {
+      const fill = t.el.querySelector('.health-fill');
+      fill.style.width = (t.health / t.maxHealth * 100) + '%';
+    }
+
+    class Unit {
+      constructor(type, x, y, owner) {
+        this.type = type; this.x = x; this.y = y; this.owner = owner;
+        this.stat = unitStats[type];
+        this.hp = this.stat.hp; this.lastAttack = 0;
+        this.el = document.createElement('div');
+        this.el.className = 'unit-wrapper';
+        this.sprite = document.createElement('div');
+        this.sprite.className = 'unit';
+        this.sprite.style.backgroundImage = `url(${this.stat.sprite})`;
+        this.el.appendChild(this.sprite);
+        this.hb = document.createElement('div');
+        this.hb.className = 'health-bar';
+        this.hf = document.createElement('div');
+        this.hf.className = 'health-fill';
+        this.hb.appendChild(this.hf);
+        this.el.appendChild(this.hb);
+        game.appendChild(this.el);
+        this.update();
+      }
+      update() {
+        this.el.style.left = this.x + 'px';
+        this.el.style.top = this.y + 'px';
+        this.hf.style.width = (this.hp / this.stat.hp * 100) + '%';
+      }
+      damage(amount) {
+        this.hp = Math.max(0, this.hp - amount);
+        this.update();
+        if (this.hp === 0) {
+          this.sprite.classList.add('dying');
+          setTimeout(() => this.el.remove(), 800);
+          return true;
+        }
+        return false;
+      }
+      attackFlash() {
+        this.sprite.style.filter = 'drop-shadow(0 0 8px white)';
+        setTimeout(() => this.sprite.style.filter = '', 200);
+      }
+    }
+
+    function addSpell(x, y, type) {
+      const sx = document.createElement('div');
+      sx.className = 'spell-effect ' + type.toLowerCase();
+      sx.style.left = (x - 45) + 'px';
+      sx.style.top = (y - 45) + 'px';
+      game.appendChild(sx);
+      setTimeout(() => sx.remove(), 1000);
+      spellsActive.push({ type, x, y, start: performance.now() });
+    }
+
+    function gameLoop(ts) {
+      if (!lastTimestamp) lastTimestamp = ts;
+      const dt = ts - lastTimestamp;
+      lastTimestamp = ts;
+
+      // Elixir regen
+      elixir = Math.min(10, elixir + dt / 1000);
+      elixirBar.style.width = (elixir * 10) + '%';
+
+      // AI spawn
+      aiCooldown -= dt;
+      if (aiCooldown <= 0 && elixir >= 2) {
+        const types = Object.keys(unitStats);
+        const type = types[Math.floor(Math.random() * types.length)];
+        elixir -= unitStats[type].cost;
+        units.push(new Unit(type, 200, 50, 'enemy'));
+        aiCooldown = 2000 + Math.random() * 2000;
+      }
+
+      // Units update & attack flash
+      units.forEach(u => {
+        if (u.hp > 0) {
+          const dir = (u.owner === 'player') ? 1 : -1;
+          u.y += dir * (dt / 16) * 0.5;
+          u.update();
+          u.attackFlash();
+        }
+      });
+
+      // Spell cleanup
+      spellsActive = spellsActive.filter(sp => performance.now() - sp.start < 1000);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Button logic
+    let selected = null;
+    buttons.forEach(btn => {
+      btn.onclick = () => {
+        if (btn.classList.contains('cooldown')) return;
+        if (selected === btn) {
+          btn.classList.remove('selected');
+          selected = null;
+        } else {
+          buttons.forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selected = btn;
+        }
+      };
+    });
+
+    game.onclick = e => {
+      if (!selected) return;
+      const type = selected.dataset.name;
+      const xpos = e.offsetX, ypos = e.offsetY;
+      if (unitStats[type] && elixir >= unitStats[type].cost) {
+        elixir -= unitStats[type].cost;
+        units.push(new Unit(type, xpos, 550, 'player'));
+      }
+      else if (spells[type] && elixir >= spells[type].cost) {
+        elixir -= spells[type].cost;
+        addSpell(xpos, ypos, type);
+      }
+      buttons.forEach(b => b.classList.remove('selected'));
+      selected = null;
+    };
+
+    requestAnimationFrame(gameLoop);
+  })();
+  </script>
+</body>
+</html>
